@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,13 @@ type EMAPayload struct {
 	UserId      string  `json:"userId"`
 	Lat         float64 `json:"lat"` // 必須有這行
 	Lng         float64 `json:"lng"` // 必須有這行
+}
+
+type HistoryRecord struct {
+	Date        string `json:"date"`        // 格式化後的時間 (例如 04/28)
+	MoodScore   int    `json:"moodScore"`   // 效價
+	EnergyScore int    `json:"energyScore"` // 喚醒度
+	PM25        int    `json:"pm25"`        // 環境數據
 }
 
 // ... (getPM25 函式維持不變) ...
@@ -285,6 +293,45 @@ func main() {
 		log.Println("======================================")
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "紀錄已成功儲存！"})
+	})
+
+	// 獲取個人歷史紀錄
+	r.GET("/api/history", func(c *gin.Context) {
+		userId := c.Query("userId")
+		if len(userId) != 33 || userId[0] != 'U' {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 UserID"})
+			return
+		}
+
+		// 撈取該受試者最近的 14 筆紀錄，依照時間舊到新排序 (適合畫折線圖)
+		query := `
+			SELECT created_at, mood_score, energy_score, pm25_value 
+			FROM ema_logs 
+			WHERE line_user_id = $1 
+			ORDER BY created_at ASC 
+			LIMIT 14
+		`
+		rows, err := dbPool.Query(context.Background(), query, userId)
+		if err != nil {
+			log.Printf("[錯誤] 撈取歷史紀錄失敗: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "讀取失敗"})
+			return
+		}
+		defer rows.Close()
+
+		var records []HistoryRecord
+		for rows.Next() {
+			var r HistoryRecord
+			var createdAt time.Time
+			if err := rows.Scan(&createdAt, &r.MoodScore, &r.EnergyScore, &r.PM25); err == nil {
+				// 將時間轉為台北時區，並格式化為 "MM/DD HH:mm"
+				loc, _ := time.LoadLocation("Asia/Taipei")
+				r.Date = createdAt.In(loc).Format("01/02 15:04")
+				records = append(records, r)
+			}
+		}
+
+		c.JSON(http.StatusOK, records)
 	})
 
 	log.Println("[系統] Go 伺服器已啟動在 http://localhost:3000")
