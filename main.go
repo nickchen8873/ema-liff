@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -171,6 +172,15 @@ func main() {
 	// 建立 Gin 路由
 	r := gin.Default()
 	r.Static("/public", "./public")
+
+	// 👇 【新增這段 CORS 設定】 👇
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowAllOrigins = true                                                              // 允許所有網域跨站請求 (MVP 階段先全開)
+	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"} // 確保有 OPTIONS
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "Accept"}
+
+	// 掛載中介軟體
+	r.Use(cors.New(corsConfig))
 
 	// LINE Webhook 路由
 	r.POST("/webhook", func(c *gin.Context) {
