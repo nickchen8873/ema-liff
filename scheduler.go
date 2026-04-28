@@ -25,7 +25,7 @@ func InitScheduler(bot *linebot.Client, db *pgxpool.Pool) {
 
 	c := cron.New(cron.WithLocation(loc))
 
-	// 🚨 【修改時間】請改成你預計推送的 10~15 分鐘後，例如 20:10
+	// 1. 固定排程 (每日09:00)
 	c.AddFunc("10 20 * * *", func() {
 		broadcastMulticast(bot, db, "現在狀態如何？來記錄一下日常脈絡吧。")
 	})
