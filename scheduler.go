@@ -17,7 +17,7 @@ func InitScheduler(bot *linebot.Client, db *pgxpool.Pool) {
 	c := cron.New(cron.WithLocation(loc))
 
 	// 1. 固定排程 (範例：09:00)
-	c.AddFunc("42 19 * * *", func() {
+	c.AddFunc("46 19 * * *", func() {
 		broadcastMulticast(bot, db, "現在狀態如何？來記錄一下日常脈絡吧。")
 	})
 
