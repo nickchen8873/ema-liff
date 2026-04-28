@@ -4,6 +4,7 @@ import (
 	"context" // 【新增】
 	"log"
 	"time"
+	_ "time/tzdata"
 
 	// 【新增】
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,11 +14,19 @@ import (
 
 // InitScheduler 接收連線池指針
 func InitScheduler(bot *linebot.Client, db *pgxpool.Pool) {
-	loc, _ := time.LoadLocation("Asia/Taipei")
+	// 加上錯誤處理，確保我們知道時區有沒有載入成功
+	loc, err := time.LoadLocation("Asia/Taipei")
+	if err != nil {
+		log.Println("[警告] 無法載入台北時區，排程時間可能異常:", err)
+	}
+
+	// 印出伺服器當下的認知時間，方便我們在 Render 後台核對
+	log.Printf("[系統] 排程器啟動。伺服器目前時間: %s", time.Now().In(loc).Format("15:04:05"))
+
 	c := cron.New(cron.WithLocation(loc))
 
-	// 1. 固定排程 (範例：09:00)
-	c.AddFunc("50 19 * * *", func() {
+	// 🚨 【修改時間】請改成你預計推送的 10~15 分鐘後，例如 20:10
+	c.AddFunc("10 20 * * *", func() {
 		broadcastMulticast(bot, db, "現在狀態如何？來記錄一下日常脈絡吧。")
 	})
 
