@@ -305,10 +305,10 @@ func main() {
 
 		// 撈取該受試者最近的 14 筆紀錄，依照時間舊到新排序 (適合畫折線圖)
 		query := `
-			SELECT created_at, mood_score, energy_score, pm25_value 
+			SELECT recorded_at, mood_score, energy_score, pm25_value 
 			FROM ema_logs 
 			WHERE line_user_id = $1 
-			ORDER BY created_at ASC 
+			ORDER BY recorded_at ASC 
 			LIMIT 14
 		`
 		rows, err := dbPool.Query(context.Background(), query, userId)
