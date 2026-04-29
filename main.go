@@ -319,16 +319,32 @@ func main() {
 		}
 		defer rows.Close()
 
-		var records []HistoryRecord
+		// 1. 正確初始化 Slice，保證沒資料時前端收到的是 [] 而不是 null
+		records := []HistoryRecord{}
+
 		for rows.Next() {
 			var r HistoryRecord
 			var createdAt time.Time
-			if err := rows.Scan(&createdAt, &r.MoodScore, &r.EnergyScore, &r.PM25); err == nil {
-				// 將時間轉為台北時區，並格式化為 "MM/DD HH:mm"
-				loc, _ := time.LoadLocation("Asia/Taipei")
-				r.Date = createdAt.In(loc).Format("01/02 15:04")
-				records = append(records, r)
+
+			// 2. 將可能為 NULL 的數值型別改用指標 (需確保 HistoryRecord struct 裡的 PM25 是 *float64 或 *int)
+			// 例如： type HistoryRecord struct { ... PM25 *float64 `json:"pm25"` }
+			err := rows.Scan(&createdAt, &r.MoodScore, &r.EnergyScore, &r.PM25)
+
+			// 3. 把錯誤印出來，我們才能驗證問題出在哪
+			if err != nil {
+				log.Printf("[警告] 解析資料列失敗 userId=%s: %v\n", userId, err)
+				continue // 記錄錯誤後跳過這一筆，讓其他好的資料可以傳出去
 			}
+
+			// 處理時間 (建議把 time.LoadLocation 移到迴圈外，比較省效能)
+			loc, _ := time.LoadLocation("Asia/Taipei")
+			r.Date = createdAt.In(loc).Format("01/02 15:04")
+			records = append(records, r)
+		}
+
+		// 4. 檢查是否有迴圈後發生的錯誤
+		if err := rows.Err(); err != nil {
+			log.Printf("[錯誤] 讀取資料集發生錯誤: %v\n", err)
 		}
 
 		c.JSON(http.StatusOK, records)
