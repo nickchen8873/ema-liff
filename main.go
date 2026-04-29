@@ -2,6 +2,7 @@ package main
 
 import (
 	"context" // 【新增】
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -54,9 +55,9 @@ type EMAPayload struct {
 
 type HistoryRecord struct {
 	Date        string `json:"date"`        // 格式化後的時間 (例如 04/28)
-	MoodScore   int    `json:"moodScore"`   // 效價
-	EnergyScore int    `json:"energyScore"` // 喚醒度
-	PM25        int    `json:"pm25"`        // 環境數據
+	MoodScore   *int   `json:"moodScore"`   // 效價
+	EnergyScore *int   `json:"energyScore"` // 喚醒度
+	PM25        *int   `json:"pm25"`        // 環境數據
 }
 
 // ... (getPM25 函式維持不變) ...
@@ -326,14 +327,41 @@ func main() {
 			var r HistoryRecord
 			var createdAt time.Time
 
+			// 宣告nullable int 的變數
+			var pm25Null sql.NullInt64
+			var moodNull sql.NullInt64
+			var energyNull sql.NullInt64
+
 			// 2. 將可能為 NULL 的數值型別改用指標 (需確保 HistoryRecord struct 裡的 PM25 是 *float64 或 *int)
 			// 例如： type HistoryRecord struct { ... PM25 *float64 `json:"pm25"` }
-			err := rows.Scan(&createdAt, &r.MoodScore, &r.EnergyScore, &r.PM25)
+			err := rows.Scan(&createdAt, &moodNull, &energyNull, &pm25Null)
 
 			// 3. 把錯誤印出來，我們才能驗證問題出在哪
 			if err != nil {
 				log.Printf("[警告] 解析資料列失敗 userId=%s: %v\n", userId, err)
 				continue // 記錄錯誤後跳過這一筆，讓其他好的資料可以傳出去
+			}
+
+			// 安全轉換：如果資料庫有值，才將它塞入指標
+			if pm25Null.Valid {
+				val := int(pm25Null.Int64)
+				r.PM25 = &val
+			} else {
+				r.PM25 = nil // 其實宣告時預設就是 nil，寫出來是確保邏輯清晰
+			}
+
+			if moodNull.Valid {
+				val := int(moodNull.Int64)
+				r.MoodScore = &val
+			} else {
+				r.MoodScore = nil
+			}
+
+			if energyNull.Valid {
+				val := int(energyNull.Int64)
+				r.EnergyScore = &val
+			} else {
+				r.EnergyScore = nil
 			}
 
 			// 處理時間 (建議把 time.LoadLocation 移到迴圈外，比較省效能)
