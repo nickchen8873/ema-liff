@@ -309,7 +309,7 @@ func main() {
 			SELECT recorded_at, mood_score, energy_score, pm25_value 
 			FROM ema_logs 
 			WHERE line_user_id = $1 
-			ORDER BY recorded_at ASC 
+			ORDER BY recorded_at DESC 
 			LIMIT 14
 		`
 		rows, err := dbPool.Query(context.Background(), query, userId)
