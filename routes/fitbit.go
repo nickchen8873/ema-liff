@@ -130,4 +130,27 @@ func SetupFitbitRoutes(r *gin.Engine, dbPool *pgxpool.Pool) { // 假設你傳入
 		// 成功後，轉址回前端的 LIFF 畫面 (例如提示「綁定成功」的頁面)
 		c.Redirect(http.StatusFound, "https://liff.line.me/2009889443-bwfiYEbv?status=success")
 	})
+
+	// 查詢使用者的 Fitbit 綁定狀態
+	r.GET("/api/fitbit/status", func(c *gin.Context) {
+		userId := c.Query("userId")
+		if userId == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "缺少 userId"})
+			return
+		}
+
+		// 去資料庫找找看有沒有這個人的 Token 紀錄
+		var count int
+		query := `SELECT COUNT(*) FROM user_tokens WHERE participant_id = $1`
+		err := dbPool.QueryRow(context.Background(), query, userId).Scan(&count)
+
+		if err != nil {
+			log.Printf("[錯誤] 查詢綁定狀態失敗 userId=%s: %v", userId, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "資料庫查詢失敗"})
+			return
+		}
+
+		// 如果 count 大於 0，代表有紀錄，回傳 isBound: true
+		c.JSON(http.StatusOK, gin.H{"isBound": count > 0})
+	})
 }
