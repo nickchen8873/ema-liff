@@ -13,22 +13,14 @@ import (
 	"strconv"
 	"time"
 
+	"ema-system/routes"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/line/line-bot-sdk-go/v7/linebot"
-	// 【新增】PostgreSQL 驅動
-)
-
-// === 設定區 (請填入你的金鑰) ===
-const (
-	LineChannelSecret = "b17a2f8b1a342c07d39118b76944ecc8"
-	LineAccessToken   = "T6xfR2zLXteZz4sEQullwc1Ut6rYKjrDfRClZkt/wzLr/9CsUa7xG3bVA17euvhrlnwL4n5BR5GktZHt8uSYXlTUZVlj6UH6uBOWjfqfpR6Cc0haRbvZYYv3lANhUqwOq1tAOcZNDxwHqOroN37FOgdB04t89/1O/w1cDnyilFU="
-	MoenvAPIKey       = "5e440e4a-bfe0-45df-9c5a-192261e02520"
-	TargetStation     = "古亭"
-	DatabaseURL       = "postgresql://postgres.ouqodwifvpjsncdvjilg:Amitabha-4818@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
 )
 
 // 單一測站的資料內容
@@ -109,7 +101,9 @@ func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
 
 // getNearestPM25 取得最近測站名稱與數值
 func getNearestPM25(lat, lng float64) (string, int, error) {
-	apiURL := "https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=" + MoenvAPIKey + "&limit=1000&sort=ImportDate%20desc&format=JSON"
+	moenvKey := os.Getenv("MOENV_API_KEY")
+
+	apiURL := "https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=" + moenvKey + "&limit=1000&sort=ImportDate%20desc&format=JSON"
 
 	resp, err := http.Get(apiURL)
 	if err != nil {
@@ -181,6 +175,9 @@ func main() {
 	// 建立 Gin 路由
 	r := gin.Default()
 	r.Static("/public", "./public")
+
+	// 掛載 Fitbit OAuth 路由 (把 r 和 dbPool 傳進去)
+	routes.SetupFitbitRoutes(r, dbPool)
 
 	// 👇 【新增這段 CORS 設定】 👇
 	corsConfig := cors.DefaultConfig()
