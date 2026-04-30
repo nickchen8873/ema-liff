@@ -176,17 +176,15 @@ func main() {
 	r := gin.Default()
 	r.Static("/public", "./public")
 
-	// 掛載 Fitbit OAuth 路由 (把 r 和 dbPool 傳進去)
-	routes.SetupFitbitRoutes(r, dbPool)
-
-	// 👇 【新增這段 CORS 設定】 👇
+	// 1. 【先掛載 CORS 中介軟體】
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowAllOrigins = true                                                              // 允許所有網域跨站請求 (MVP 階段先全開)
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"} // 確保有 OPTIONS
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization", "Accept"}
-
-	// 掛載中介軟體
 	r.Use(cors.New(corsConfig))
+
+	// 2. 【再掛載所有路由】這樣所有 API 才會吃到 CORS 防護罩
+	routes.SetupFitbitRoutes(r, dbPool)
 
 	// LINE Webhook 路由
 	r.POST("/webhook", func(c *gin.Context) {
